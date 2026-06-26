@@ -8,25 +8,120 @@ This document details the REST API endpoints provided by the backend to manage p
 
 ---
 
-## 📬 Common Response Envelope
+## 🔑 Access Token Expiration
+The `accessToken` returned upon successful login is a **JSON Web Token (JWT)**.
+*   **Expiration Duration**: **10 minutes** from the time of generation.
+*   **Payload Claims**: Contains `user_id`, `username`, and `exp` (unix timestamp of expiration).
 
-All API endpoints return responses encapsulated in a standard JSON envelope:
+---
 
-### Success Response
+## 📬 Common Response envelopes
+
+### Success Envelope
+All successful requests return a `200 OK` or `201 Created` status with:
 ```json
 {
   "success": true,
-  "data": { ... } // Can be an object, array, or message
+  "data": { ... } // Can be an object, array, or message string
 }
 ```
 
-### Error Response
+### Error Envelope
+All failed requests return appropriate HTTP status codes (400, 401, 404, 500) with:
 ```json
 {
   "success": false,
-  "error": "Error description details here"
+  "error": "Detailed error message describing the failure"
 }
 ```
+
+---
+
+## ❌ Common Error Codes & Troubleshooting
+
+Below are the typical error responses you will encounter when interacting with the API:
+
+### 1. `400 Bad Request`
+Triggered by invalid payloads, validation constraints, or format errors.
+
+*   **JSON parsing error**: Sending invalid JSON structure.
+    ```json
+    {
+      "success": false,
+      "error": "Invalid request body: invalid character..."
+    }
+    ```
+*   **Validation error (Register)**: Username < 3 chars or Password < 6 chars.
+    ```json
+    {
+      "success": false,
+      "error": "username must be at least 3 characters long"
+    }
+    ```
+*   **Validation error (Category/Product)**: Missing required fields or negative numbers.
+    ```json
+    {
+      "success": false,
+      "error": "validation error: product name is required"
+    }
+    ```
+*   **Conflict error**: Creating a product with a `code` that already exists.
+    ```json
+    {
+      "success": false,
+      "error": "product code 'SP01' already exists"
+    }
+    ```
+*   **Reference error**: Creating a product with a `category_id` that does not exist.
+    ```json
+    {
+      "success": false,
+      "error": "category_id 999 does not exist"
+    }
+    ```
+
+### 2. `401 Unauthorized`
+Triggered by authentication failures.
+
+*   **Missing Header**: Calling protected endpoints without the `Authorization` header.
+    ```json
+    {
+      "success": false,
+      "error": "Missing Authorization header"
+    }
+    ```
+*   **Invalid Header Format**: Header is not in `Bearer <token>` format.
+    ```json
+    {
+      "success": false,
+      "error": "Invalid Authorization header format. Must be 'Bearer <token>'"
+    }
+    ```
+*   **Invalid/Expired Token**: Token is forged, corrupted, or has expired (exceeded 10 minutes).
+    ```json
+    {
+      "success": false,
+      "error": "Invalid or expired access token"
+    }
+    ```
+*   **Invalid Credentials**: Wrong username or password during login.
+    ```json
+    {
+      "success": false,
+      "error": "invalid username or password"
+    }
+    ```
+
+### 3. `404 Not Found`
+Triggered when requesting a resource (Category/Product) that does not exist.
+
+*   **Resource Not Found**:
+    ```json
+    {
+      "success": false,
+      "error": "product not found"
+    }
+    ```
 
 ---
 
@@ -56,16 +151,7 @@ Create a new user account.
 
 *   **URL**: `/register`
 *   **Method**: `POST`
-*   **Request Body**:
-    *   `username` (string, required): Minimum 3 characters. Must be unique.
-    *   `password` (string, required): Minimum 6 characters. Will be securely hashed with bcrypt.
-*   **Example Request Body**:
-    ```json
-    {
-      "username": "cuongpc10",
-      "password": "password123"
-    }
-    ```
+*   *Body example*: `{"username": "cuongpc10", "password": "password123"}`
 *   **Success Response (201 Created)**:
     ```json
     {
@@ -81,22 +167,13 @@ Authenticate user credentials and generate a JWT access token.
 
 *   **URL**: `/login`
 *   **Method**: `POST`
-*   **Request Body**:
-    *   `username` (string, required)
-    *   `password` (string, required)
-*   **Example Request Body**:
-    ```json
-    {
-      "username": "cuongpc10",
-      "password": "123456"
-    }
-    ```
+*   *Body example*: `{"username": "cuongpc10", "password": "123456"}`
 *   **Success Response (200 OK)**:
     ```json
     {
       "success": true,
       "data": {
-        "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3ODI1Mz...",
+        "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
         "username": "cuongpc10"
       }
     }
@@ -106,8 +183,7 @@ Authenticate user credentials and generate a JWT access token.
 
 ### 📝 Part B: Protected Product Categories Endpoints
 
-These endpoints **require** a valid JSON Web Token (JWT) in the request headers:
-*   **Header**: `Authorization: Bearer <accessToken>`
+These endpoints **require** a valid JWT token in headers: `Authorization: Bearer <accessToken>`.
 
 #### B.1. Get All Categories
 Retrieve a list of all product categories.
@@ -136,14 +212,7 @@ Add a new product category.
 
 *   **URL**: `/categories`
 *   **Method**: `POST`
-*   **Request Body**:
-    *   `name` (string, required): Cannot be empty.
-*   **Example Request Body**:
-    ```json
-    {
-      "name": "Bao bì giấy"
-    }
-    ```
+*   *Body example*: `{"name": "Bao bì giấy"}`
 *   **Success Response (201 Created)**:
     ```json
     {
@@ -160,14 +229,7 @@ Modify an existing category.
 
 *   **URL**: `/categories/{id}`
 *   **Method**: `PUT`
-*   **Path Parameters**:
-    *   `id` (integer, required)
-*   **Example Request Body**:
-    ```json
-    {
-      "name": "Bao bì tái chế"
-    }
-    ```
+*   *Body example*: `{"name": "Bao bì tái chế"}`
 *   **Success Response (200 OK)**:
     ```json
     {
@@ -184,8 +246,6 @@ Delete a category from the database.
 
 *   **URL**: `/categories/{id}`
 *   **Method**: `DELETE`
-*   **Path Parameters**:
-    *   `id` (integer, required)
 *   **Success Response (200 OK)**:
     ```json
     {
@@ -200,8 +260,7 @@ Delete a category from the database.
 
 ### 🛍️ Part C: Protected Products Endpoints
 
-These endpoints **require** a valid JSON Web Token (JWT) in the request headers:
-*   **Header**: `Authorization: Bearer <accessToken>`
+These endpoints **require** a valid JWT token in headers: `Authorization: Bearer <accessToken>`.
 
 #### C.1. Get All Products (Filtered & Paginated)
 Retrieve a list of products. Supports pagination, keyword searches, and category filtering.
@@ -239,15 +298,7 @@ Add a new product to the catalog.
 
 *   **URL**: `/products`
 *   **Method**: `POST`
-*   **Request Body**:
-    *   `name` (string, required)
-    *   `code` (string, required): Must be unique.
-    *   `price` (float, required): Cannot be negative.
-    *   `stock` (int, required): Cannot be negative.
-    *   `category_id` (int, required): Must reference an existing Category.
-    *   `description` (string, optional)
-    *   `image` (string, optional)
-*   **Example Request Body**:
+*   *Body example*:
     ```json
     {
       "name": "Example Product",
@@ -283,9 +334,7 @@ Modify details of an existing product.
 
 *   **URL**: `/products/{id}`
 *   **Method**: `PUT`
-*   **Path Parameters**:
-    *   `id` (integer, required)
-*   **Request Body**: Same schema as Product Creation.
+*   *Body example*: Same schema as Product Creation.
 *   **Success Response (200 OK)**:
     ```json
     {
@@ -310,8 +359,6 @@ Remove a product from the database.
 
 *   **URL**: `/products/{id}`
 *   **Method**: `DELETE`
-*   **Path Parameters**:
-    *   `id` (integer, required)
 *   **Success Response (200 OK)**:
     ```json
     {

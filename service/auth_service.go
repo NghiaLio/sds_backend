@@ -70,11 +70,11 @@ func (s *authServiceImpl) Login(ctx context.Context, req model.LoginRequest) (*m
 		return nil, errors.New("invalid username or password")
 	}
 
-	// Generate JWT AccessToken (expires in 24 hours)
+	// Generate JWT AccessToken (expires in 10 minutes)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id":  id,
 		"username": req.Username,
-		"exp":      time.Now().Add(24 * time.Hour).Unix(),
+		"exp":      time.Now().Add(10 * time.Minute).Unix(),
 	})
 
 	tokenStr, err := token.SignedString(s.jwtSecret)
