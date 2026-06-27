@@ -10,7 +10,7 @@ This document details the REST API endpoints provided by the backend to manage p
 
 ## 🔑 Access Token Expiration
 The `accessToken` returned upon successful login is a **JSON Web Token (JWT)**.
-*   **Expiration Duration**: **10 minutes** from the time of generation.
+*   **Expiration Duration**: **5 minutes** from the time of generation.
 *   **Payload Claims**: Contains `user_id`, `username`, and `exp` (unix timestamp of expiration).
 
 ---

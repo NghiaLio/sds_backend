@@ -74,7 +74,7 @@ func (s *authServiceImpl) Login(ctx context.Context, req model.LoginRequest) (*m
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id":  id,
 		"username": req.Username,
-		"exp":      time.Now().Add(10 * time.Minute).Unix(),
+		"exp":      time.Now().Add(5 * time.Minute).Unix(),
 	})
 
 	tokenStr, err := token.SignedString(s.jwtSecret)

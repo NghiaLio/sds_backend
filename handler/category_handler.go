@@ -24,6 +24,7 @@ func (h *CategoryHandler) RegisterRoutes(mux *http.ServeMux, auth *AuthMiddlewar
 	mux.Handle("POST /categories", auth.Handler(http.HandlerFunc(h.CreateCategory)))
 	mux.Handle("GET /categories", auth.Handler(http.HandlerFunc(h.GetAllCategories)))
 	mux.Handle("PUT /categories/{id}", auth.Handler(http.HandlerFunc(h.UpdateCategory)))
+	mux.Handle("PATCH /categories/{id}", auth.Handler(http.HandlerFunc(h.PatchCategory)))
 	mux.Handle("DELETE /categories/{id}", auth.Handler(http.HandlerFunc(h.DeleteCategory)))
 }
 
@@ -79,6 +80,42 @@ func (h *CategoryHandler) UpdateCategory(w http.ResponseWriter, r *http.Request)
 	}
 
 	respondWithSuccess(w, http.StatusOK, category)
+}
+
+// PatchCategory handles category partial updating.
+func (h *CategoryHandler) PatchCategory(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid category ID format")
+		return
+	}
+
+	existing, err := h.service.GetCategoryByID(r.Context(), id)
+	if err != nil {
+		if err.Error() == "category not found" {
+			respondWithError(w, http.StatusNotFound, err.Error())
+		} else {
+			respondWithError(w, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(existing); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request body: "+err.Error())
+		return
+	}
+
+	if err := h.service.UpdateCategory(r.Context(), id, existing); err != nil {
+		if err.Error() == "category not found" {
+			respondWithError(w, http.StatusNotFound, err.Error())
+		} else {
+			respondWithError(w, http.StatusBadRequest, err.Error())
+		}
+		return
+	}
+
+	respondWithSuccess(w, http.StatusOK, existing)
 }
 
 // DeleteCategory handles category deleting.

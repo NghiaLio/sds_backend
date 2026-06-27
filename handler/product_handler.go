@@ -24,6 +24,7 @@ func (h *ProductHandler) RegisterRoutes(mux *http.ServeMux, auth *AuthMiddleware
 	mux.Handle("POST /products", auth.Handler(http.HandlerFunc(h.CreateProduct)))
 	mux.Handle("GET /products", auth.Handler(http.HandlerFunc(h.GetAllProducts)))
 	mux.Handle("PUT /products/{id}", auth.Handler(http.HandlerFunc(h.UpdateProduct)))
+	mux.Handle("PATCH /products/{id}", auth.Handler(http.HandlerFunc(h.PatchProduct)))
 	mux.Handle("DELETE /products/{id}", auth.Handler(http.HandlerFunc(h.DeleteProduct)))
 }
 
@@ -99,6 +100,42 @@ func (h *ProductHandler) UpdateProduct(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithSuccess(w, http.StatusOK, product)
+}
+
+// PatchProduct handles product partial updating.
+func (h *ProductHandler) PatchProduct(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid product ID format")
+		return
+	}
+
+	existing, err := h.service.GetProductByID(r.Context(), id)
+	if err != nil {
+		if err.Error() == "product not found" {
+			respondWithError(w, http.StatusNotFound, err.Error())
+		} else {
+			respondWithError(w, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(existing); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request body: "+err.Error())
+		return
+	}
+
+	if err := h.service.UpdateProduct(r.Context(), id, existing); err != nil {
+		if err.Error() == "product not found" {
+			respondWithError(w, http.StatusNotFound, err.Error())
+		} else {
+			respondWithError(w, http.StatusBadRequest, err.Error())
+		}
+		return
+	}
+
+	respondWithSuccess(w, http.StatusOK, existing)
 }
 
 // DeleteProduct handles deleting a product.
